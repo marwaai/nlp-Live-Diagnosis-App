@@ -14,7 +14,7 @@ class MyCustomHandler(BaseCallbackHandler):
         self.st_placeholder = st_placeholder
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.st_placeholder.text(token)
+        self.st_placeholder.text(token + "\n")  # Append newline character
 
 # Initialize persist directory
 persist_directory = "db"
