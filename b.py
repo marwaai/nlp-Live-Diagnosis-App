@@ -12,9 +12,13 @@ from langchain_core.callbacks import BaseCallbackHandler
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self, st_placeholder):
         self.st_placeholder = st_placeholder
+        self.text = ""  # String to store the text
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.st_placeholder.text(token + "\n")  # Append newline character
+        self.text += token + " "  # Concatenate the new token with a space
+
+        # Update the display with the concatenated text
+        self.st_placeholder.text(self.text)
 
 # Initialize persist directory
 persist_directory = "db"
