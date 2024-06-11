@@ -7,6 +7,10 @@ from langchain.vectorstores import FAISS
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
+class MyCustomHandler(BaseCallbackHandler):
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        st.write(token)
 
 # Initialize persist directory
 persist_directory = "db"
@@ -42,7 +46,11 @@ qa = RetrievalQA.from_chain_type(
     retriever=retriever,
     return_source_documents=False
 )
-
+def stream_output(question):
+    print("ppp")
+    callback_handler = MyCustomHandler()
+    llm.callbacks = [callback_handler]
+    llm.predict(question)
 # Main Streamlit app logic
 def main():
     st.title('Live Diagnosis App')
@@ -51,11 +59,7 @@ def main():
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
     if st.button('Ask'):
-        # Process the question and get the answer
-        answer = llm.predict(question)
-        # Display the question and answer
-        st.write('Question:', question)
-        st.write('Answer:', answer)
+        stream_output(question)
 
 # Start the Streamlit app
 if __name__ == '__main__':
