@@ -1,0 +1,64 @@
+import streamlit as st
+import os
+from langchain.document_loaders import TextLoader, DirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain.vectorstores import FAISS
+from langchain_community.llms import CTransformers
+from langchain.chains import RetrievalQA
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+# Initialize persist directory
+persist_directory = "db"
+
+# Load documents and create embeddings
+for root, dirs, files in os.walk(r"C:\Users\PC\Documents\final\db\docs"):
+    for file in files:
+        if file.endswith("txt"):
+            loader = TextLoader(os.path.join(root, file))
+            documents = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+            texts = text_splitter.split_documents(documents)
+
+# Create embeddings
+embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+# Create vector store
+db = FAISS.from_documents(texts, embeddings)
+
+# Initialize LLM and QA models
+llm = CTransformers(
+    model="TheBloke/Llama-2-7B-Chat-GGML",
+    model_file='llama-2-7b-chat.ggmlv3.q2_K.bin',
+   callbacks=[StreamingStdOutCallbackHandler()], stream=True,prompt="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."
+)
+
+retriever = db.as_retriever(search_kwargs={"k": 1})
+
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="refine",
+    retriever=retriever,
+    return_source_documents=False
+)
+
+# Main Streamlit app logic
+def main():
+    st.title('Live Diagnosis App')
+    st.write('Ask your medical questions here and get live answers from our AI assistant.')
+
+    # Initialize an empty list to store questions
+    questions = []
+
+    while True:
+        # Check if there are any new questions
+        if len(questions) > 0:
+            question = questions.pop(0)
+            answer = llm.predict(question)
+            st.write('Question:', question)
+            st.write('Answer:', answer)
+            st.write('---')
+
+# Start the Streamlit app
+if __name__ == '__main__':
+    main()
