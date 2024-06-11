@@ -12,7 +12,7 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 persist_directory = "db"
 
 # Load documents and create embeddings
-for root, dirs, files in os.walk(r"C:\Users\PC\Documents\final\db\docs"):
+for root, dirs, files in os.walk(r"db"):
     for file in files:
         if file.endswith("txt"):
             loader = TextLoader(os.path.join(root, file))
