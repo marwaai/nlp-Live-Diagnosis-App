@@ -1,5 +1,6 @@
-import os
 import streamlit as st
+import os
+from langchain.document_loaders import TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
@@ -7,37 +8,28 @@ from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain.document_loaders import TextLoader
-
 class MyCustomHandler(BaseCallbackHandler):
-    def __init__(self, st_placeholder):
-        self.st_placeholder = st_placeholder
-        self.text = ""
-
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token + " "
-        self.st_placeholder.text(self.text)
+        st.write(token)
 
 # Initialize persist directory
 persist_directory = "db"
 
 # Load documents and create embeddings
-@st.cache_resource(experimental_allow_widgets=True)
-def load_texts():
-    texts = []
-    for root, dirs, files in os.walk(r"db"):
-        for file in files:
-            if file.endswith("txt"):
-                loader = TextLoader(os.path.join(root, file))
-                documents = loader.load()
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-                texts.extend(text_splitter.split_documents(documents))
-    return texts
-
-texts = load_texts()
+texts = []
+for root, dirs, files in os.walk(r"db"):
+    for file in files:
+        if file.endswith("txt"):
+            loader = TextLoader(os.path.join(root, file))
+            documents = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+            texts.extend(text_splitter.split_documents(documents))
 
 # Create embeddings
 embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+# Create vector store
+db = FAISS.from_documents(texts, embeddings)
 
 # Initialize LLM and QA models
 llm = CTransformers(
@@ -54,7 +46,11 @@ qa = RetrievalQA.from_chain_type(
     retriever=retriever,
     return_source_documents=False
 )
-
+def stream_output(question):
+    print("ppp")
+    callback_handler = MyCustomHandler()
+    llm.callbacks = [callback_handler]
+    llm.predict(question)
 # Main Streamlit app logic
 def main():
     st.title('Live Diagnosis App')
@@ -62,15 +58,8 @@ def main():
 
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
-    placeholder = st.empty()
     if st.button('Ask'):
-        stream_output(question, placeholder)
-
-# Function to stream output
-def stream_output(question, st_placeholder):
-    callback_handler = MyCustomHandler(st_placeholder)
-    llm.callbacks = [callback_handler]
-    llm.predict(question)
+        stream_output(question)
 
 # Start the Streamlit app
 if __name__ == '__main__':
