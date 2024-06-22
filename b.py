@@ -73,11 +73,11 @@ qa = RetrievalQA.from_chain_type(
     retriever=retriever,
     return_source_documents=False
 )
-@st.cache_resource
 def stream_output(question, st_placeholder):
     callback_handler = MyCustomHandler(st_placeholder)
     llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
+    print("ttooooooooooooooo")
     llm.predict(question)
 
 # Main Streamlit app logic
