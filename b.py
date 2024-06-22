@@ -9,29 +9,9 @@ from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
 
-class MyCustomHandler(BaseCallbackHandler):
-    def __init__(self, st_placeholder):
-        super().__init__()
-        self.st_placeholder = st_placeholder
-        self.dialogue = ""
-        self.lock = threading.Lock()  # Lock for thread-safe access
-        self.stop_event = threading.Event()  # Event to signal stop
-
-    def on_llm_new_token(self, token: str, **kwargs) -> None:
-        if token.strip():  # Ignore empty tokens
-            with self.lock:
-                self.dialogue += token + " "  # Accumulate the full content
-
-    def update_placeholder(self):
-        with self.lock:
-            self.st_placeholder.text(self.dialogue)  # Update Streamlit placeholder with full content
-            self.dialogue = ""  # Clear dialogue after updating
-
-    def stop(self):
-        self.stop_event.set()  # Set the stop event
-
-    def is_stopped(self):
-        return self.stop_event.is_set()  # Check if stop event is set
+# Global state for managing prediction thread
+prediction_thread = None
+stop_event = threading.Event()
 
 # Initialize persist directory
 persist_directory = "db"
@@ -83,14 +63,29 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-def stream_output(question, st_placeholder, callback_handler):
-    llm.callbacks = [callback_handler]
-    callback_handler.clear_dialogue()
-    callback_handler.stop_event.clear()  # Clear stop event initially
-    threading.Thread(target=llm.predict_with_callback_handler, args=(question, callback_handler)).start()
+def predict_and_update(question, st_placeholder):
+    global stop_event
+    dialogue = ""
+    
+    # Function to perform prediction and update placeholder
+    def predict_thread():
+        nonlocal dialogue
+        for token in llm.predict(question):
+            if stop_event.is_set():
+                break
+            dialogue += token + " "
+            st_placeholder.text(dialogue)
+    
+    # Start prediction thread
+    global prediction_thread
+    prediction_thread = threading.Thread(target=predict_thread)
+    prediction_thread.start()
 
-def stop_output(callback_handler):
-    callback_handler.stop()  # Set stop event to stop prediction
+def stop_prediction():
+    global stop_event, prediction_thread
+    if prediction_thread and prediction_thread.is_alive():
+        stop_event.set()
+        prediction_thread.join()
 
 # Main Streamlit app logic
 def main():
@@ -101,17 +96,11 @@ def main():
     question = st.text_input('Enter your question:')
     placeholder = st.empty()
     
-    callback_handler = MyCustomHandler(placeholder)
-
     if st.button('Ask'):
-        stream_output(question, placeholder, callback_handler)
+        predict_and_update(question, placeholder)
     
     if st.button('Stop'):
-        stop_output(callback_handler)
-
-    # Check if stopped to update placeholder
-    if callback_handler.is_stopped():
-        callback_handler.update_placeholder()
+        stop_prediction()
 
 # Start the Streamlit app
 if __name__ == '__main__':
