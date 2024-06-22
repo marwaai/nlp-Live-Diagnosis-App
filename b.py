@@ -1,6 +1,5 @@
-import streamlit as st
 import os
-from langchain.document_loaders import TextLoader, DirectoryLoader
+import streamlit as st
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
@@ -8,20 +7,20 @@ from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain.document_loaders import TextLoader
 
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self, st_placeholder):
         self.st_placeholder = st_placeholder
-        self.text = ""  # String to store the text
+        self.text = ""
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token + " "  # Concatenate the new token with a space
-
-        # Update the display with the concatenated text
+        self.text += token + " "
         self.st_placeholder.text(self.text)
 
 # Initialize persist directory
 persist_directory = "db"
+index_path = os.path.join(persist_directory, "faiss_index")
 
 # Load documents and create embeddings
 @st.cache_resource(experimental_allow_widgets=True)
@@ -41,8 +40,14 @@ texts = load_texts()
 # Create embeddings
 embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
-# Create vector store
-db = FAISS.from_documents(texts, embeddings)
+# Load or create vector store
+if os.path.exists(index_path):
+    db = FAISS.load_local(index_path, embeddings)
+    print("FAISS index loaded from disk.")
+else:
+    db = FAISS.from_documents(texts, embeddings)
+    db.save_local(index_path)
+    print("FAISS index created and saved to disk.")
 
 # Initialize LLM and QA models
 llm = CTransformers(
