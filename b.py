@@ -20,7 +20,7 @@ class MyCustomHandler(BaseCallbackHandler):
 
 # Initialize persist directory
 persist_directory = "db"
-index_path = os.path.join(persist_directory, "faiss_index")
+index_path = os.path.join(db, "faiss_index")
 
 # Load documents and create embeddings
 @st.cache_resource(experimental_allow_widgets=True)
