@@ -1,3 +1,4 @@
+
 import threading
 import streamlit as st
 import os
@@ -22,10 +23,6 @@ class MyCustomHandler(BaseCallbackHandler):
 
     def clear_dialogue(self):
         self.dialogue = ""
-
-# Global state for managing prediction thread
-prediction_thread = None
-stop_event = threading.Event()
 
 # Initialize persist directory
 persist_directory = "db"
@@ -77,36 +74,11 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-def predict_and_update(question, st_placeholder):
-    global stop_event, prediction_thread
-    dialogue = ""
-
-    # Function to perform prediction and update placeholder
-    def predict_thread():
-        nonlocal dialogue
-        try:
-            for token in llm.predict(question):
-                if stop_event.is_set():
-                    break
-                dialogue += token + " "
-                st_placeholder.text(dialogue)
-        except Exception as e:
-            st.error(f"Prediction thread error: {str(e)}")
-        finally:
-            stop_event.clear()  # Clear stop event at the end
-
-    # Check if there's an ongoing prediction thread and stop it
-    stop_prediction()
-
-    # Start new prediction thread
-    prediction_thread = threading.Thread(target=predict_thread)
-    prediction_thread.start()
-
-def stop_prediction():
-    global stop_event, prediction_thread
-    if prediction_thread and prediction_thread.is_alive():
-        stop_event.set()
-        prediction_thread.join()  # Wait for the thread to complete
+def stream_output(question, st_placeholder):
+    callback_handler = MyCustomHandler(st_placeholder)
+    llm.callbacks = [callback_handler]
+    callback_handler.clear_dialogue()
+    llm.predict(question)
 
 # Main Streamlit app logic
 def main():
@@ -118,10 +90,7 @@ def main():
     placeholder = st.empty()
     
     if st.button('Ask'):
-        predict_and_update(question, placeholder)
-    
-    if st.button('Stop'):
-        stop_prediction()
+        stream_output(question, placeholder)
 
 # Start the Streamlit app
 if __name__ == '__main__':
