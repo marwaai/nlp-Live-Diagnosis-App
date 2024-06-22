@@ -20,7 +20,6 @@ class MyCustomHandler(BaseCallbackHandler):
 
 # Initialize persist directory
 persist_directory = "db"
-index_path = os.path.join(db, "faiss_index")
 
 # Load documents and create embeddings
 @st.cache_resource(experimental_allow_widgets=True)
@@ -39,15 +38,6 @@ texts = load_texts()
 
 # Create embeddings
 embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-
-# Load or create vector store
-if os.path.exists(index_path):
-    db = FAISS.load_local(index_path, embeddings)
-    print("FAISS index loaded from disk.")
-else:
-    db = FAISS.from_documents(texts, embeddings)
-    db.save_local(index_path)
-    print("FAISS index created and saved to disk.")
 
 # Initialize LLM and QA models
 llm = CTransformers(
