@@ -7,6 +7,7 @@ from langchain.vectorstores import FAISS
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
+import threading
 
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self, st_placeholder):
