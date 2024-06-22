@@ -13,14 +13,14 @@ from langchain_core.callbacks import BaseCallbackHandler
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self):
         super().__init__()
-        self.text = ""
+        self.dialogue = ""
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token + " "
-        st.write(self.text)
+        if token.strip():  # Ignore empty tokens
+            self.dialogue += token + " "
 
-    def clear_text(self):
-        self.text = ""
+    def clear_dialogue(self):
+        self.dialogue = ""
 
 # Initialize persist directory
 persist_directory = "db"
@@ -78,7 +78,7 @@ llm.callbacks = [callback_handler]
 stop_event = threading.Event()
 
 def stream_output(question):
-    callback_handler.clear_text()
+    callback_handler.clear_dialogue()
     llm.predict(question)
 
 def stop_stream():
@@ -99,6 +99,8 @@ def main():
 
     if st.button('Stop'):
         stop_stream()
+
+    st.text_area('Conversation', value=callback_handler.dialogue, height=400)
 
     while not stop_event.is_set():
         stop_event.wait(1)  # Wait for 1 second before checking stop condition
