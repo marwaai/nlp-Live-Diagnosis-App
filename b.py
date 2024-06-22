@@ -4,16 +4,19 @@ from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
-from langchain_community.llms import CTransformers
-from langchain.chains import RetrievalQA
-from langchain_core.callbacks import BaseCallbackHandler
+from langchain_huggingface import HuggingFaceEmbeddings  # Import HuggingFaceEmbeddings for serialization
 
-class MyCustomHandler(BaseCallbackHandler):
+class MyCustomHandler:
+    def __init__(self, st_placeholder):
+        self.st_placeholder = st_placeholder
+        self.text = ""  # String to store the text
+
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        st.write(token)
+        self.text += token + " "  # Concatenate the new token with a space
+        self.st_placeholder.text(self.text)
 
 # Initialize persist directory
-persist_directory = "db"
+persist_directory = "em"
 
 # Function to load documents and create embeddings
 def load_documents_and_create_embeddings():
@@ -26,14 +29,23 @@ def load_documents_and_create_embeddings():
                 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
                 texts.extend(text_splitter.split_documents(documents))
 
-    embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")  # Use HuggingFace embeddings
     db = FAISS.from_documents(texts, embeddings)
-    db.save("faiss_index")
+    
+    # Serialize FAISS index to bytes
+    pkl = db.serialize_to_bytes()
+    with open(os.path.join(persist_directory, "faiss_index.pkl"), "wb") as f:
+        f.write(pkl)
+    
     return db
 
 # Load or create FAISS index
-if os.path.exists("faiss_index"):
-    db = FAISS.load("faiss_index")
+faiss_index_path = os.path.join(persist_directory, "faiss_index.pkl")
+if os.path.exists(faiss_index_path):
+    with open(faiss_index_path, "rb") as f:
+        pkl = f.read()
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")  # Use HuggingFace embeddings
+    db = FAISS.deserialize_from_bytes(embeddings=embeddings, serialized=pkl)
 else:
     db = load_documents_and_create_embeddings()
 
@@ -53,8 +65,8 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-def stream_output(question):
-    callback_handler = MyCustomHandler(st.empty())
+def stream_output(question, st_placeholder):
+    callback_handler = MyCustomHandler(st_placeholder)
     llm.callbacks = [callback_handler]
     llm.predict(question)
 
@@ -65,8 +77,9 @@ def main():
 
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
+    placeholder = st.empty()
     if st.button('Ask'):
-        stream_output(question)
+        stream_output(question, placeholder)
 
 # Start the Streamlit app
 if __name__ == '__main__':
