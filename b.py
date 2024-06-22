@@ -64,7 +64,7 @@ qa = RetrievalQA.from_chain_type(
 )
 
 def stream_output(question, st_placeholder):
-    callback_handler = MyCustomHandler(st_placeholder)
+    callback_handler = MyCustomHandler()
     llm.callbacks = [callback_handler]
     llm.predict(question)
 
