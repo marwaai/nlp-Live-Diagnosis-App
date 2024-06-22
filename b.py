@@ -1,23 +1,23 @@
 import streamlit as st
 import os
-import threading
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
 
 class MyCustomHandler(BaseCallbackHandler):
-    def __init__(self):
+    def __init__(self, st_placeholder):
         super().__init__()
+        self.st_placeholder = st_placeholder
         self.dialogue = ""
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         if token.strip():  # Ignore empty tokens
             self.dialogue += token + " "
+            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
 
     def clear_dialogue(self):
         self.dialogue = ""
@@ -72,12 +72,11 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-callback_handler = MyCustomHandler()
-llm.callbacks = [callback_handler]
-
 stop_event = threading.Event()
 
-def stream_output(question):
+def stream_output(question, st_placeholder):
+    callback_handler = MyCustomHandler(st_placeholder)
+    llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
     llm.predict(question)
 
@@ -95,15 +94,10 @@ def main():
 
     if st.button('Ask'):
         stop_event.clear()
-        stream_output(question)
+        stream_output(question, placeholder)
 
     if st.button('Stop'):
         stop_stream()
-
-    st.text_area('Conversation', value=callback_handler.dialogue, height=400)
-
-    while not stop_event.is_set():
-        stop_event.wait(1)  # Wait for 1 second before checking stop condition
 
 # Start the Streamlit app
 if __name__ == '__main__':
