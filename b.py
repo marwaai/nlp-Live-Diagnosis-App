@@ -1,4 +1,3 @@
-
 import threading
 import streamlit as st
 import os
@@ -15,14 +14,24 @@ class MyCustomHandler(BaseCallbackHandler):
         super().__init__()
         self.st_placeholder = st_placeholder
         self.dialogue = ""
+        self.lock = threading.Lock()  # Lock for thread-safe access
+        self.stop_event = threading.Event()  # Event to signal stop
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         if token.strip():  # Ignore empty tokens
-            self.dialogue += token + " "
-            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
+            with self.lock:
+                self.dialogue += token + " "  # Accumulate the full content
 
-    def clear_dialogue(self):
-        self.dialogue = ""
+    def update_placeholder(self):
+        with self.lock:
+            self.st_placeholder.text(self.dialogue)  # Update Streamlit placeholder with full content
+            self.dialogue = ""  # Clear dialogue after updating
+
+    def stop(self):
+        self.stop_event.set()  # Set the stop event
+
+    def is_stopped(self):
+        return self.stop_event.is_set()  # Check if stop event is set
 
 # Initialize persist directory
 persist_directory = "db"
@@ -74,11 +83,14 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-def stream_output(question, st_placeholder):
-    callback_handler = MyCustomHandler(st_placeholder)
+def stream_output(question, st_placeholder, callback_handler):
     llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
-    llm.predict(question)
+    callback_handler.stop_event.clear()  # Clear stop event initially
+    threading.Thread(target=llm.predict_with_callback_handler, args=(question, callback_handler)).start()
+
+def stop_output(callback_handler):
+    callback_handler.stop()  # Set stop event to stop prediction
 
 # Main Streamlit app logic
 def main():
@@ -89,8 +101,17 @@ def main():
     question = st.text_input('Enter your question:')
     placeholder = st.empty()
     
+    callback_handler = MyCustomHandler(placeholder)
+
     if st.button('Ask'):
-        stream_output(question, placeholder)
+        stream_output(question, placeholder, callback_handler)
+    
+    if st.button('Stop'):
+        stop_output(callback_handler)
+
+    # Check if stopped to update placeholder
+    if callback_handler.is_stopped():
+        callback_handler.update_placeholder()
 
 # Start the Streamlit app
 if __name__ == '__main__':
