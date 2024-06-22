@@ -5,7 +5,7 @@ from langchain.document_loaders import TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
-
+import torch
 class MyCustomHandler:
     def __init__(self, st_placeholder):
         self.st_placeholder = st_placeholder
