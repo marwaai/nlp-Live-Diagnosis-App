@@ -1,4 +1,3 @@
-
 import threading
 import streamlit as st
 import os
@@ -10,6 +9,7 @@ from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
 
+# Custom callback handler to update Streamlit placeholder
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self, st_placeholder):
         super().__init__()
@@ -19,7 +19,7 @@ class MyCustomHandler(BaseCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         if token.strip():  # Ignore empty tokens
             self.dialogue += token + " "
-            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
+            self.st_placeholder.markdown(self.dialogue)  # Update the Streamlit placeholder with markdown
 
     def clear_dialogue(self):
         self.dialogue = ""
@@ -73,12 +73,13 @@ qa = RetrievalQA.from_chain_type(
     retriever=retriever,
     return_source_documents=False
 )
+
+# Function to stream output to Streamlit placeholder
 def stream_output(question, st_placeholder):
     callback_handler = MyCustomHandler(st_placeholder)
     llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
-    print("ttooooooooooooooo")
-    llm.predict(question)
+    threading.Thread(target=llm.predict, args=(question,)).start()
 
 # Main Streamlit app logic
 def main():
