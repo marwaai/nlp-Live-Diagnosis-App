@@ -9,6 +9,20 @@ from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
 
+class MyCustomHandler(BaseCallbackHandler):
+    def __init__(self, st_placeholder):
+        super().__init__()
+        self.st_placeholder = st_placeholder
+        self.dialogue = ""
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        if token.strip():  # Ignore empty tokens
+            self.dialogue += token + " "
+            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
+
+    def clear_dialogue(self):
+        self.dialogue = ""
+
 # Global state for managing prediction thread
 prediction_thread = None
 stop_event = threading.Event()
@@ -18,7 +32,6 @@ persist_directory = "db"
 
 # Function to load documents and create embeddings
 def load_documents_and_create_embeddings():
-    print("uuuuuuu")
     texts = []
     for root, dirs, files in os.walk(persist_directory):
         for file in files:
