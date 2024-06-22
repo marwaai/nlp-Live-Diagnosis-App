@@ -1,3 +1,5 @@
+
+import threading
 import streamlit as st
 import os
 from langchain.document_loaders import TextLoader
@@ -6,6 +8,21 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
+from langchain_core.callbacks import BaseCallbackHandler
+
+class MyCustomHandler(BaseCallbackHandler):
+    def __init__(self, st_placeholder):
+        super().__init__()
+        self.st_placeholder = st_placeholder
+        self.dialogue = ""
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        if token.strip():  # Ignore empty tokens
+            self.dialogue += token + " "
+            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
+
+    def clear_dialogue(self):
+        self.dialogue = ""
 
 # Initialize persist directory
 persist_directory = "db"
@@ -58,11 +75,10 @@ qa = RetrievalQA.from_chain_type(
 )
 
 def stream_output(question, st_placeholder):
-    dialogue = ""
-    # Simulate token-by-token generation
-    for token in llm.predict(question):
-        dialogue += token + " "
-        st_placeholder.text(dialogue)  # Update the Streamlit placeholder
+    callback_handler = MyCustomHandler(st_placeholder)
+    llm.callbacks = [callback_handler]
+    callback_handler.clear_dialogue()
+    llm.predict(question)
 
 # Main Streamlit app logic
 def main():
