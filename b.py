@@ -1,3 +1,4 @@
+
 import threading
 import streamlit as st
 import os
@@ -8,19 +9,17 @@ from langchain.vectorstores import FAISS
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
-from queue import Queue
 
-# Custom callback handler to update Streamlit placeholder
 class MyCustomHandler(BaseCallbackHandler):
-    def __init__(self, st_queue):
+    def __init__(self, st_placeholder):
         super().__init__()
-        self.st_queue = st_queue
+        self.st_placeholder = st_placeholder
         self.dialogue = ""
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         if token.strip():  # Ignore empty tokens
             self.dialogue += token + " "
-            self.st_queue.put(self.dialogue)  # Put the dialogue into the queue
+            self.st_placeholder.text(self.dialogue)  # Update the Streamlit placeholder
 
     def clear_dialogue(self):
         self.dialogue = ""
@@ -40,7 +39,7 @@ def load_documents_and_create_embeddings():
                 texts.extend(text_splitter.split_documents(documents))
 
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")  # Use HuggingFace embeddings
-    db = FAISS.from_documents(texts)
+    db = FAISS.from_documents(texts, embeddings)
     
     # Serialize FAISS index to bytes
     pkl = db.serialize_to_bytes()
@@ -55,7 +54,7 @@ if os.path.exists(faiss_index_path):
     with open(faiss_index_path, "rb") as f:
         pkl = f.read()
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")  # Use HuggingFace embeddings
-    db = FAISS.deserialize_from_bytes(serialized=pkl)
+    db = FAISS.deserialize_from_bytes(embeddings=embeddings, serialized=pkl)
 else:
     db = load_documents_and_create_embeddings()
 
@@ -75,18 +74,11 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-# Function to handle UI updates from the queue
-def handle_ui_updates(st_placeholder, st_queue):
-    while True:
-        dialogue = st_queue.get()  # Get dialogue from the queue
-        st_placeholder.markdown(dialogue)  # Update Streamlit placeholder with markdown
-
-# Function to stream output to Streamlit placeholder
-def stream_output(question, st_placeholder, st_queue):
-    callback_handler = MyCustomHandler(st_queue)
+def stream_output(question, st_placeholder):
+    callback_handler = MyCustomHandler(st_placeholder)
     llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
-    threading.Thread(target=llm.predict, args=(question,)).start()
+    llm.predict(question)
 
 # Main Streamlit app logic
 def main():
@@ -96,14 +88,9 @@ def main():
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
     placeholder = st.empty()
-
-    # Create a queue for UI updates
-    st_queue = Queue()
-    # Start a thread to handle UI updates
-    threading.Thread(target=handle_ui_updates, args=(placeholder, st_queue), daemon=True).start()
-
+    
     if st.button('Ask'):
-        stream_output(question, placeholder, st_queue)
+        stream_output(question, placeholder)
 
 # Start the Streamlit app
 if __name__ == '__main__':
