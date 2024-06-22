@@ -30,6 +30,7 @@ persist_directory = "db"
 # Function to load documents and create embeddings
 def load_documents_and_create_embeddings():
     texts = []
+    print("ooooo")
     for root, dirs, files in os.walk(persist_directory):
         for file in files:
             if file.endswith("txt"):
