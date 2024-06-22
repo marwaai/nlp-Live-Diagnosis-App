@@ -24,7 +24,7 @@ class MyCustomHandler(BaseCallbackHandler):
 persist_directory = "db"
 
 # Load documents and create embeddings
-@st.cache(allow_output_mutation=True)
+@st.cache_resource(experimental_allow_widgets=True)
 def load_texts():
     texts = []
     for root, dirs, files in os.walk(r"db"):
