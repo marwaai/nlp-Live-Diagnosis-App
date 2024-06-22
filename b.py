@@ -1,3 +1,5 @@
+
+import threading
 import streamlit as st
 import os
 from langchain.document_loaders import TextLoader
@@ -7,7 +9,6 @@ from langchain.vectorstores import FAISS
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
-import threading
 
 class MyCustomHandler(BaseCallbackHandler):
     def __init__(self, st_placeholder):
@@ -73,16 +74,11 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-stop_event = threading.Event()
-
 def stream_output(question, st_placeholder):
     callback_handler = MyCustomHandler(st_placeholder)
     llm.callbacks = [callback_handler]
     callback_handler.clear_dialogue()
     llm.predict(question)
-
-def stop_stream():
-    stop_event.set()
 
 # Main Streamlit app logic
 def main():
@@ -92,13 +88,9 @@ def main():
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
     placeholder = st.empty()
-
+    
     if st.button('Ask'):
-        stop_event.clear()
         stream_output(question, placeholder)
-
-    if st.button('Stop'):
-        stop_stream()
 
 # Start the Streamlit app
 if __name__ == '__main__':
