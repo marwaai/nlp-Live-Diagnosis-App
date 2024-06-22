@@ -6,6 +6,7 @@ from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings  # Import HuggingFaceEmbeddings for serialization
 from langchain_community.llms import CTransformers
+from langchain.chains import RetrievalQA
 
 class MyCustomHandler:
     def __init__(self, st_placeholder):
