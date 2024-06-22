@@ -18,6 +18,7 @@ persist_directory = "db"
 
 # Function to load documents and create embeddings
 def load_documents_and_create_embeddings():
+    print("uuuuuuu")
     texts = []
     for root, dirs, files in os.walk(persist_directory):
         for file in files:
@@ -64,20 +65,27 @@ qa = RetrievalQA.from_chain_type(
 )
 
 def predict_and_update(question, st_placeholder):
-    global stop_event
+    global stop_event, prediction_thread
     dialogue = ""
-    
+
     # Function to perform prediction and update placeholder
     def predict_thread():
         nonlocal dialogue
-        for token in llm.predict(question):
-            if stop_event.is_set():
-                break
-            dialogue += token + " "
-            st_placeholder.text(dialogue)
-    
-    # Start prediction thread
-    global prediction_thread
+        try:
+            for token in llm.predict(question):
+                if stop_event.is_set():
+                    break
+                dialogue += token + " "
+                st_placeholder.text(dialogue)
+        except Exception as e:
+            st.error(f"Prediction thread error: {str(e)}")
+        finally:
+            stop_event.clear()  # Clear stop event at the end
+
+    # Check if there's an ongoing prediction thread and stop it
+    stop_prediction()
+
+    # Start new prediction thread
     prediction_thread = threading.Thread(target=predict_thread)
     prediction_thread.start()
 
@@ -85,7 +93,7 @@ def stop_prediction():
     global stop_event, prediction_thread
     if prediction_thread and prediction_thread.is_alive():
         stop_event.set()
-        prediction_thread.join()
+        prediction_thread.join()  # Wait for the thread to complete
 
 # Main Streamlit app logic
 def main():
