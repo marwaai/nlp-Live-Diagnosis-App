@@ -8,14 +8,9 @@ from langchain_huggingface import HuggingFaceEmbeddings  # Import HuggingFaceEmb
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 
-class MyCustomHandler:
-    def __init__(self, st_placeholder):
-        self.st_placeholder = st_placeholder
-        self.text = ""  # String to store the text
-
+class MyCustomHandler(BaseCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token + " "  # Concatenate the new token with a space
-        self.st_placeholder.text(self.text)
+        st.write(token)
 
 # Initialize persist directory
 persist_directory = "db"
