@@ -1,17 +1,26 @@
 import streamlit as st
 import os
+import threading
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings  # Import HuggingFaceEmbeddings for serialization
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.llms import CTransformers
 from langchain.chains import RetrievalQA
 from langchain_core.callbacks import BaseCallbackHandler
 
 class MyCustomHandler(BaseCallbackHandler):
+    def __init__(self):
+        super().__init__()
+        self.text = ""
+
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        st.write(token)
+        self.text += token + " "
+        st.write(self.text)
+
+    def clear_text(self):
+        self.text = ""
 
 # Initialize persist directory
 persist_directory = "db"
@@ -63,10 +72,17 @@ qa = RetrievalQA.from_chain_type(
     return_source_documents=False
 )
 
-def stream_output(question, st_placeholder):
-    callback_handler = MyCustomHandler()
-    llm.callbacks = [callback_handler]
+callback_handler = MyCustomHandler()
+llm.callbacks = [callback_handler]
+
+stop_event = threading.Event()
+
+def stream_output(question):
+    callback_handler.clear_text()
     llm.predict(question)
+
+def stop_stream():
+    stop_event.set()
 
 # Main Streamlit app logic
 def main():
@@ -76,8 +92,16 @@ def main():
     # Text input field for user to ask questions
     question = st.text_input('Enter your question:')
     placeholder = st.empty()
+
     if st.button('Ask'):
-        stream_output(question, placeholder)
+        stop_event.clear()
+        stream_output(question)
+
+    if st.button('Stop'):
+        stop_stream()
+
+    while not stop_event.is_set():
+        stop_event.wait(1)  # Wait for 1 second before checking stop condition
 
 # Start the Streamlit app
 if __name__ == '__main__':
