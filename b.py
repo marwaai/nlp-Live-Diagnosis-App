@@ -5,6 +5,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings  # Import HuggingFaceEmbeddings for serialization
+from langchain_community.llms import CTransformers
 
 class MyCustomHandler:
     def __init__(self, st_placeholder):
