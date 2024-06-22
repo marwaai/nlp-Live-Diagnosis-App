@@ -16,7 +16,7 @@ class MyCustomHandler:
         self.st_placeholder.text(self.text)
 
 # Initialize persist directory
-persist_directory = "em"
+persist_directory = "db"
 
 # Function to load documents and create embeddings
 def load_documents_and_create_embeddings():
