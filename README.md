@@ -100,14 +100,5 @@ Vitamin B12 deficiency can cause fatigue, weakness, memory issues, numbness or t
 
 This is a **prototype** for educational purposes. It does **not** replace professional medical advice. Use responsibly.
 
----
 
-## 👩‍💻 Author
 
-**Marwa Mahmoud**
-AI Engineer & Web Developer
-GitHub: [marwaai](https://github.com/marwaai)
-
----
-
-Would you like a version that includes **session history**, **source highlighting**, or **file uploader for PDFs** as next steps?
